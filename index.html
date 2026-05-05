@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Family Feud</title>
+<title>MA May 6,2026</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -92,7 +92,7 @@
   }
 
   .answer-slot {
-    background: #1a3a8f;
+    background: #3760d1;
     border: 2px solid #42a5f5;
     border-radius: 6px;
     display: flex;
@@ -102,7 +102,7 @@
     min-height: 44px;
     transition: background .3s;
   }
-  .answer-slot.revealed { background: #0d47a1; }
+  .answer-slot.revealed { background: #9dcc2f; }
   .answer-slot .ans-text { font-size: .85rem; font-weight: bold; }
   .answer-slot .ans-points {
     background: #42a5f5;
@@ -432,7 +432,7 @@ function initRound() {
   roundScore = 0;
   revealed = new Array(6).fill(false);
   faceoffAnswers = [null, null];
-  faceoffTurn = 0;
+  faceoffTurn = faceoffTurn = roundIndex % 2 === 0 ? 0 : 1; // team 0 goes first on odd rounds, team 1 on even
   phase = 'faceoff';
 
   qText.textContent = r.question;
@@ -529,7 +529,10 @@ function hideOverlay() {
 // ══════════════════════════════════════════════════════════════
 function flashWrong() {
   slotEls.forEach(s => { s.classList.add('flash-wrong'); });
-  setTimeout(() => slotEls.forEach(s => s.classList.remove('flash-wrong')), 500);
+  setTimeout(() => {
+    slotEls.forEach(s => s.classList.remove('flash-wrong'));
+    answerInput.focus(); // add this line
+  }, 500);
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -555,7 +558,6 @@ function checkAnswer(input) {
 function handleFaceoff(input) {
   const idx = checkAnswer(input);
   if (idx === -1) {
-    // Wrong during face-off — record null for this team
     faceoffAnswers[faceoffTurn] = null;
     flashWrong();
   } else {
@@ -563,16 +565,32 @@ function handleFaceoff(input) {
     faceoffAnswers[faceoffTurn] = { idx, points: ROUNDS[roundIndex].answers[idx].points };
   }
 
-  if (faceoffTurn === 0) {
-    // Move to team 1
-    faceoffTurn = 1;
+  // If first team got the #1 answer (index 0), skip second team
+  if (faceoffTurn !== (roundIndex % 2 === 0 ? 1 : 0)) { // if this was the FIRST team's turn
+    if (faceoffAnswers[faceoffTurn] && faceoffAnswers[faceoffTurn].idx === 0) {
+      const winner = faceoffTurn;
+      const loser = 1 - winner;
+      showOverlay(
+        `Team ${winner+1} got the #1 answer!`,
+        `Second team skipped. Play or Pass?`,
+        [
+          { label:'Play', cls:'btn-play', cb: () => startPlay(winner) },
+          { label:'Pass to Team '+(loser+1), cls:'btn-pass', cb: () => startPlay(loser) },
+        ]
+      );
+      return;
+    }
+    // Otherwise advance to second team
+    faceoffTurn = 1 - faceoffTurn;
     updateLabel();
     return;
   }
 
-  // Both teams answered — decide winner
-  const a0 = faceoffAnswers[0];
-  const a1 = faceoffAnswers[1];
+  // Both teams have answered — resolve as normal
+  const firstTeam = roundIndex % 2 === 0 ? 0 : 1;
+  const secondTeam = 1 - firstTeam;
+  const a0 = faceoffAnswers[firstTeam];
+  const a1 = faceoffAnswers[secondTeam];
 
   let winner, loser;
   if (!a0 && !a1) {
